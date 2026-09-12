@@ -1,0 +1,43 @@
+# 沙箱运行时（大文件、克隆资产、可能含新登录凭证）
+.sandbox/
+
+# 运行产物
+proxy/proxy.log
+proxy/proxy.stdout
+*.log
+*.pyc
+__pycache__/
+
+# Windows/WSL 本地运行状态与面板设置
+.local/
+windows/*.pid
+windows/*.log
+
+# Claude Science Linux 二进制：体积较大，按官方来源单独下载
+linux-x64
+
+# 绝不入库任何密钥
+*.env
+.env
+*secret*
+*token*
+
+# Rust / Tauri 构建产物
+target/
+**/target/
+
+# 前端依赖与构建产物（Tauri / py2app）
+node_modules/
+dist/
+build/
+
+# macOS 与工作区杂物
+.DS_Store
+.superpowers/
+
+# 本地开发工作流文档（brainstorm→spec→plan），不上传公开仓库
+docs/superpowers/
+
+# 每日巡检运行产物：全是本机运行态（报告/版本基线/日志/锁），只保留空目录占位
+findings/auto-maint/*
+!findings/auto-maint/.gitkeep
