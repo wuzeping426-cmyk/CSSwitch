@@ -27,12 +27,30 @@ function Test-LocalPort([int]$PortToCheck) {
     }
 }
 
+function Get-AuthProxyHealth([int]$PortToCheck) {
+    try {
+        $response = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$PortToCheck/health" -TimeoutSec 2
+        return ([string]$response.Content).Trim() -eq "ok"
+    } catch {
+        return $false
+    }
+}
+
 if (Test-Path -LiteralPath $pidFile) {
     $oldPid = ([string](Get-Content -LiteralPath $pidFile -Raw)).Trim()
     if ($oldPid -match '^\d+$') {
         Stop-Process -Id ([int]$oldPid) -Force -ErrorAction SilentlyContinue
     }
     Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
+}
+
+if (Test-LocalPort $Port -and -not (Get-AuthProxyHealth $Port)) {
+    throw "端口 $Port 已被其他程序占用，不是 CSSwitch 认证代理。请关闭占用该端口的程序后重试。"
+}
+
+if (Get-AuthProxyHealth $Port) {
+    Write-Output "http://localhost:$Port/"
+    return
 }
 
 $env:CS_AUTH_PROXY_PORT = "$Port"
@@ -44,13 +62,23 @@ $process = Start-Process -FilePath "node.exe" -ArgumentList @($script) -WindowSt
 $ready = $false
 for ($i = 0; $i -lt 25; $i++) {
     Start-Sleep -Milliseconds 200
-    if (Test-LocalPort $Port) {
+    if ($process.HasExited) {
+        break
+    }
+    if (Get-AuthProxyHealth $Port) {
         $ready = $true
         break
     }
 }
 if (-not $ready) {
-    throw "Claude Science auth proxy failed to start on port $Port."
+    $detail = ""
+    if (Test-Path -LiteralPath $errLog) {
+        $detail = (Get-Content -LiteralPath $errLog -Tail 8 -ErrorAction SilentlyContinue) -join " "
+    }
+    if ($detail) {
+        throw "Claude Science 自动登录代理未能在端口 $Port 启动：$detail"
+    }
+    throw "Claude Science 自动登录代理未能在端口 $Port 启动。"
 }
 
 Write-Output "http://localhost:$Port/"
