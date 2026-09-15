@@ -1,9 +1,11 @@
 param(
     [int]$Port = 8000,
-    [int]$TargetPort = 8002
+    [int]$TargetPort = 8002,
+    [string]$WslDistro = ""
 )
 
 $ErrorActionPreference = "Stop"
+$WslDistro = if ($WslDistro) { $WslDistro.Trim() } elseif ($env:CSSWITCH_WSL_DISTRO) { $env:CSSWITCH_WSL_DISTRO.Trim() } else { "Ubuntu" }
 $pidFile = Join-Path $PSScriptRoot "claude-science-auth-proxy.pid"
 $outLog = Join-Path $PSScriptRoot "claude-science-auth-proxy.stdout.log"
 $errLog = Join-Path $PSScriptRoot "claude-science-auth-proxy.stderr.log"
@@ -26,7 +28,7 @@ function Test-LocalPort([int]$PortToCheck) {
 }
 
 if (Test-Path -LiteralPath $pidFile) {
-    $oldPid = (Get-Content -LiteralPath $pidFile -Raw).Trim()
+    $oldPid = ([string](Get-Content -LiteralPath $pidFile -Raw)).Trim()
     if ($oldPid -match '^\d+$') {
         Stop-Process -Id ([int]$oldPid) -Force -ErrorAction SilentlyContinue
     }
@@ -35,6 +37,7 @@ if (Test-Path -LiteralPath $pidFile) {
 
 $env:CS_AUTH_PROXY_PORT = "$Port"
 $env:CS_TARGET_PORT = "$TargetPort"
+$env:CSSWITCH_WSL_DISTRO = $WslDistro
 $process = Start-Process -FilePath "node.exe" -ArgumentList @($script) -WindowStyle Hidden -PassThru -RedirectStandardOutput $outLog -RedirectStandardError $errLog
 [System.IO.File]::WriteAllText($pidFile, "$($process.Id)")
 

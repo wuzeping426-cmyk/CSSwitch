@@ -4,7 +4,7 @@ Windows 版通过 WSL Ubuntu 运行 Claude Science Linux 二进制，并用 Powe
 
 ## 前置条件
 
-1. Windows 10/11，已安装 WSL 2 和 Ubuntu。
+1. Windows 10/11，已安装 WSL 2 和 Ubuntu。面板会自动选择已安装的 Ubuntu；如果电脑有多个 WSL 发行版，也可以通过 `CSSWITCH_WSL_DISTRO` 指定。
 2. Windows 可运行 PowerShell 5.1+，并已安装 Node.js。
 3. 在 Ubuntu 中安装运行依赖：
 
@@ -23,7 +23,7 @@ sudo apt install -y python3 nodejs bubblewrap socat curl
 
 常用可选环境变量：
 
-- `CSSWITCH_WSL_DISTRO`：WSL 发行版名称，默认 `Ubuntu`。
+- `CSSWITCH_WSL_DISTRO`：WSL 发行版名称；未设置时自动选择 Ubuntu，找不到 Ubuntu 时使用第一个已安装发行版。
 - `CSSWITCH_SANDBOX_HOME`：WSL 沙箱 HOME，默认 `$HOME/cs/.sandbox/h`。
 - `CS_SCIENCE_BIN_WSL`：Linux 二进制在 WSL 中的绝对路径。
 - `CS_SCIENCE_DATA_DIR`：Claude Science 数据目录在 WSL 中的绝对路径。
@@ -37,6 +37,22 @@ windows\Open-CSSwitch-Panel.cmd
 ```
 
 面板支持保存配置、获取上游模型列表、切换模型并启动、打开页面、停止服务和刷新状态。切换模型前，面板会检查是否存在正在运行的会话，避免中断当前工作。
+
+## 常见错误
+
+### Base URL 不能填写 `/keys`
+
+OpenAI 兼容接口的 Base URL 应填写服务商提供的 API 根地址，例如：
+
+```text
+https://example.com/v1
+```
+
+不要填写管理页面或密钥页面地址，例如 `https://example.com/keys`。面板会访问该地址下的 `/models` 和 `/chat/completions`，填写 `/keys` 会导致路径错误。点击“获取接口模型”时如果失败，日志会显示上游返回的具体原因。
+
+### 不能对 Null 值表达式调用方法
+
+这是旧版本 Windows 面板读取 WSL 输出时的兼容性问题，常见于 Windows PowerShell 5.1。请更新仓库后重新打开 `windows\Open-CSSwitch-Panel.cmd`；新版本已改为兼容 PowerShell 5.1 的异步输出读取，并会显示实际的 WSL 错误。
 
 也可以直接运行：
 

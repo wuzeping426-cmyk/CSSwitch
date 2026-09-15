@@ -295,6 +295,7 @@ function Save-Configuration {
     if ($modelBox.Text.Trim() -notmatch '^[A-Za-z0-9][A-Za-z0-9._:/-]*$') { throw '模型名称含不支持的字符。' }
     $uri = $null
     if (-not [Uri]::TryCreate($baseBox.Text.Trim(), [UriKind]::Absolute, [ref]$uri) -or $uri.Scheme -notin @('http','https') -or $uri.UserInfo -or $uri.Query -or $uri.Fragment) { throw '请填写有效的 HTTP(S) API 地址。' }
+    if ($uri.AbsolutePath.TrimEnd('/') -match '/keys$') { throw 'Base URL 不能填写 /keys。请填写 OpenAI 兼容接口根地址，例如 https://example.com/v1。' }
     if ($keyBox.Text -match '[\r\n]') { throw 'API Key 不能包含换行。' }
     Set-EnvValue "CSSWITCH_OPENAI_BASE_URL" $baseBox.Text.Trim()
     Set-EnvValue "CSSWITCH_OPENAI_MODEL" $modelBox.Text.Trim()
@@ -313,7 +314,7 @@ function Save-PanelSettings {
 function Start-PanelJob([string]$Action) {
     if ($script:Job) { return }
     $ps = [PowerShell]::Create()
-    [void]$ps.AddCommand((Join-Path $ScriptDir 'CSSwitch-PanelWorker.ps1')).AddParameter('Action',$Action).AddParameter('Root',$Root).AddParameter('ScriptDir',$ScriptDir).AddParameter('BaseUrl',$baseBox.Text.Trim()).AddParameter('ApiKey',$keyBox.Text.Trim()).AddParameter('History',[int]$historyBox.Value)
+    [void]$ps.AddCommand((Join-Path $ScriptDir 'CSSwitch-PanelWorker.ps1')).AddParameter('Action',$Action).AddParameter('Root',$Root).AddParameter('ScriptDir',$ScriptDir).AddParameter('BaseUrl',$baseBox.Text.Trim()).AddParameter('ApiKey',$keyBox.Text.Trim()).AddParameter('Model',$modelBox.Text.Trim()).AddParameter('History',[int]$historyBox.Value)
     $handle = $ps.BeginInvoke()
     $script:Job = @{ PowerShell=$ps; Handle=$handle; Action=$Action; Started=[DateTime]::Now }
     foreach ($control in @($saveButton,$startButton,$stopButton,$refreshButton,$modelsButton,$configCard,$openButton)) { $control.Enabled = $false }

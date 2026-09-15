@@ -1,5 +1,12 @@
 # 更新日志 / Changelog
 
+## [Unreleased] — 2026-09-15
+
+- 修复 Windows PowerShell 5.1 下读取 WSL 异步输出时的 `不能对 Null 值表达式调用方法`。
+- 修复 Windows 面板启动时未必使用当前界面模型的问题，启动脚本现在显式接收 Base URL、模型和 WSL 发行版。
+- 对 `/keys` 作为 OpenAI Base URL 的误填提供明确提示，避免把管理页面地址当成 API 根地址。
+- Windows 脚本自动发现可用 WSL 发行版，并兼容带空字符的 `wsl.exe --list --quiet` 输出。
+
 本项目所有值得记录的变更都写在这里。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 > **约定**：已修问题从 [`docs/known-issues.md`](docs/known-issues.md)「毕业」到这里（发布即定稿）；未修/进行中留在 known-issues；硬 bug 的根因证据链存在 [`findings/`](findings/)。

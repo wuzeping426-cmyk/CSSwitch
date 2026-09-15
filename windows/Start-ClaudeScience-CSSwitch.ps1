@@ -9,12 +9,37 @@ param(
     [string]$RelayThinking = "",
     [ValidateRange(1, 500)]
     [int]$MaxHistory = 48,
-    [string]$WslDistro = "Ubuntu",
+    [string]$WslDistro = "",
     [switch]$AllowPlaceholder
 )
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
+
+function Get-TrimmedText([object]$Value) {
+    if ($null -eq $Value) { return '' }
+    return ([string]$Value).Trim()
+}
+
+function Resolve-WslDistro {
+    $requested = if ($WslDistro) { $WslDistro.Trim() } elseif ($env:CSSWITCH_WSL_DISTRO) { $env:CSSWITCH_WSL_DISTRO.Trim() } else { '' }
+    if ($requested) { return $requested }
+    $list = & wsl.exe --list --quiet 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        throw "WSL 不可用。请先安装 WSL 2 和 Ubuntu。"
+    }
+    $names = @($list | ForEach-Object {
+        ((Get-TrimmedText $_) -replace "`0", "") -replace '^\*\s*', ''
+    } | Where-Object { $_ })
+    if (-not $names.Count) {
+        throw "未发现 WSL Linux 发行版。请安装 Ubuntu，或设置 CSSWITCH_WSL_DISTRO。"
+    }
+    $preferred = $names | Where-Object { $_ -match '^Ubuntu(?:[-\s].*)?$' } | Select-Object -First 1
+    if ($preferred) { return $preferred }
+    return [string]$names[0]
+}
+
+$WslDistro = Resolve-WslDistro
 
 function ConvertTo-WslPath([string]$WindowsPath) {
     $psi = New-Object System.Diagnostics.ProcessStartInfo
@@ -33,7 +58,12 @@ function ConvertTo-WslPath([string]$WindowsPath) {
     if ($process.ExitCode -ne 0) {
         throw "Cannot map the repository path into WSL: $stderr"
     }
-    return $stdout.Trim()
+    $mapped = Get-TrimmedText $stdout
+    if (-not $mapped) {
+        $detail = Get-TrimmedText $stderr
+        throw "WSL 没有返回仓库路径。$detail"
+    }
+    return $mapped
 }
 
 function Invoke-WslCommand([string]$Command) {
@@ -51,9 +81,11 @@ function Invoke-WslCommand([string]$Command) {
     $stderr = $process.StandardError.ReadToEnd()
     $process.WaitForExit()
     if ($process.ExitCode -ne 0) {
-        throw "Claude Science failed to start in WSL (exit code $($process.ExitCode)): $stderr"
+        $detail = Get-TrimmedText $stderr
+        if (-not $detail) { $detail = "没有返回详细错误。" }
+        throw "Claude Science 在 WSL 中启动失败（发行版：$WslDistro，退出码：$($process.ExitCode)）：$detail"
     }
-    $stdout.TrimEnd()
+    return (Get-TrimmedText $stdout)
 }
 $WslRepo = ConvertTo-WslPath $RepoRoot
 $argsList = @(
@@ -76,7 +108,7 @@ if ($AllowPlaceholder) {
 
 & (Join-Path $PSScriptRoot "Stop-ClaudeScience-AuthProxy.ps1")
 Invoke-WslCommand ($argsList -join " && ")
-& (Join-Path $PSScriptRoot "Start-ClaudeScience-AuthProxy.ps1") -Port 8000 -TargetPort $SciencePort | Out-Null
+& (Join-Path $PSScriptRoot "Start-ClaudeScience-AuthProxy.ps1") -Port 8000 -TargetPort $SciencePort -WslDistro $WslDistro | Out-Null
 
 try {
     & (Join-Path $PSScriptRoot "Start-ClaudeScience-Link.ps1") | Out-Null
